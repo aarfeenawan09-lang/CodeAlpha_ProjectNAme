@@ -1,0 +1,130 @@
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <functional> // For hash
+using namespace std;
+const string SALT = "SecureSalt123";
+string hashPassword(const string& password) {
+    hash<string> hasher;
+    return to_string(hasher(SALT + password));
+}
+class UserManager {
+private:
+    const string filename = "users.txt"; 
+
+public:
+    bool validateInput(const string& username, const string& password) {
+        if (username.empty() || username.length() < 3) {
+            cout << "Error: Username must be at least 3 characters long." << endl;
+            return false;
+        }
+        if (password.length() < 6) {
+            cout << "Error: Password must be at least 6 characters long." << endl;
+            return false;
+        }
+        return true;
+    }
+    void registerUser(const string& username, const string& password) {
+        if (!validateInput(username, password)) {
+            return;
+        }
+        ifstream file(filename);
+        string line;
+        bool exists = false;
+        while (getline(file, line)) {
+            size_t pos = line.find(':');
+            if (pos != string::npos) {
+                string existingUsername = line.substr(0, pos);
+                if (existingUsername == username) {
+                    exists = true;
+                    break;
+                }
+            }
+        }
+        file.close();
+
+        if (exists) {
+            cout << "Error: Username already exists. Please choose a different username." << endl;
+            return;
+        }
+        ofstream out(filename, ios::app);
+        if (!out) {
+            cout << "Error: Unable to open file for writing." << endl;
+            return;
+        }
+        out << username << ":" << hashPassword(password) << endl;
+        out.close();
+
+        cout << "Registration successful for user: " << username << endl;
+    }
+    bool loginUser(const string& username, const string& password) {
+        if (!validateInput(username, password)) {
+            return false;
+        }
+
+        ifstream file(filename);
+        if (!file) {
+            cout << "Error: Unable to open file for reading." << endl;
+            return false;
+        }
+
+        string line;
+        while (getline(file, line)) {
+            size_t pos = line.find(':');
+            if (pos != string::npos) {
+                string storedUsername = line.substr(0, pos);
+                string storedHash = line.substr(pos + 1);
+                if (storedUsername == username && storedHash == hashPassword(password)) {
+                    file.close();
+                    cout << "Login successful. Welcome, " << username << "!" << endl;
+                    return true;
+                }
+            }
+        }
+        file.close();
+
+        cout << "Error: Invalid username or password." << endl;
+        return false;
+    }
+};
+
+// Main function with a simple menu
+int main() {
+    UserManager manager;
+    int choice;
+    string username, password;
+
+    while (true) {
+        cout << "\n--- User Authentication System ---" << endl;
+        cout << "1. Register" << endl;
+        cout << "2. Login" << endl;
+        cout << "3. Exit" << endl;
+        cout << "Enter your choice: ";
+        cin >> choice;
+        cin.ignore(); // To handle newline after integer input
+
+        switch (choice) {
+            case 1:
+                cout << "Enter username: ";
+                getline(cin, username);
+                cout << "Enter password: ";
+                getline(cin, password);
+                manager.registerUser(username, password);
+                break;
+            case 2:
+                cout << "Enter username: ";
+                getline(cin, username);
+                cout << "Enter password: ";
+                getline(cin, password);
+                manager.loginUser(username, password);
+                break;
+            case 3:
+                cout << "Exiting system. Goodbye!" << endl;
+                return 0;
+            default:
+                cout << "Invalid choice. Please try again." << endl;
+        }
+    }
+
+    return 0;
+}
